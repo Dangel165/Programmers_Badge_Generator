@@ -10,6 +10,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 권한 명시 (Settings에서 설정하는 것과 같은 효과)
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v3
 
@@ -27,20 +31,26 @@ jobs:
 
       - name: Run Java program
         env:
-          # 특수문자가 포함된 비밀번호를 안전하게 전달하기 위해 따옴표 처리 권장
+          # 시크릿에서 가져온 아이디/비번
           PROGRAMMERS_TOKEN_ID: ${{ secrets.PROGRAMMERS_TOKEN_ID }}
           PROGRAMMERS_TOKEN_PW: ${{ secrets.PROGRAMMERS_TOKEN_PW }}
         run: ./gradlew run
 
       - name: Commit and Push changes
         env:
-          # 이 레포의 푸시 권한을 위해 GH_PAT이 필요합니다.
-          GH_PAT: ${{ secrets.GH_PAT }}
+          # 별도의 GH_PAT 없이 기본 토큰으로 푸시하도록 설정
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_EMAIL: ${{ secrets.GIT_EMAIL }}
           GIT_NAME: ${{ secrets.GIT_NAME }}
         run: |
           git config --global user.email "${GIT_EMAIL}"
           git config --global user.name "${GIT_NAME}"
           git add .
-          # 변경사항이 있을 때만 커밋 (에러 방지)
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update badge" && git push https://${GH_PAT}@github.com/${{ github.repository }}.git HEAD:main)
+          
+          # 변경사항이 있는지 확인 후 커밋/푸시
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Update badge"
+            git push
+          else
+            echo "No changes to commit"
+          fi
