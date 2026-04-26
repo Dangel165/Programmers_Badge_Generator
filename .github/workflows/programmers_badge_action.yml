@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 권한 명시 (Settings에서 설정하는 것과 같은 효과)
     permissions:
       contents: write
 
@@ -27,18 +26,21 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: ./gradlew build
+        # clean을 추가하여 이전 빌드 기록이 영향을 주지 않게 합니다.
+        run: ./gradlew clean build --no-daemon
 
       - name: Run Java program
         env:
-          # 시크릿에서 가져온 아이디/비번
-          PROGRAMMERS_TOKEN_ID: ${{ secrets.PROGRAMMERS_TOKEN_ID }}
-          PROGRAMMERS_TOKEN_PW: ${{ secrets.PROGRAMMERS_TOKEN_PW }}
-        run: ./gradlew run
+          ID: ${{ secrets.PROGRAMMERS_TOKEN_ID }}
+          PW: ${{ secrets.PROGRAMMERS_TOKEN_PW }}
+        run: |
+          # 환경 변수를 안전하게 전달하기 위해 .env 파일을 생성합니다.
+          echo "PROGRAMMERS_TOKEN_ID=\"$ID\"" > .env
+          echo "PROGRAMMERS_TOKEN_PW=\"$PW\"" >> .env
+          ./gradlew run --no-daemon
 
       - name: Commit and Push changes
         env:
-          # 별도의 GH_PAT 없이 기본 토큰으로 푸시하도록 설정
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_EMAIL: ${{ secrets.GIT_EMAIL }}
           GIT_NAME: ${{ secrets.GIT_NAME }}
@@ -47,7 +49,6 @@ jobs:
           git config --global user.name "${GIT_NAME}"
           git add .
           
-          # 변경사항이 있는지 확인 후 커밋/푸시
           if [ -n "$(git status --porcelain)" ]; then
             git commit -m "Update badge"
             git push
